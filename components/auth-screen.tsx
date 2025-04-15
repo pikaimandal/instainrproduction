@@ -8,12 +8,14 @@ import { Wallet, UserPlus, ExternalLink } from "lucide-react"
 import OnboardingFlow from "@/components/onboarding-flow"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { MiniKit } from "@worldcoin/minikit-js"
+import { toast } from "sonner"
 
 export default function AuthScreen() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [isWorldApp, setIsWorldApp] = useState(false)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -21,19 +23,74 @@ export default function AuthScreen() {
     setIsWorldApp(MiniKit.isInstalled())
   }, [])
 
-  const handleLogin = () => {
+  const authenticateWithWallet = async (isNewAccount: boolean = false) => {
     if (!isWorldApp) {
       return
     }
-    // In a real app, this would authenticate with World Wallet
-    router.push("/dashboard")
+
+    try {
+      setIsAuthenticating(true)
+      
+      // Get a nonce from the server
+      const res = await fetch(`/api/nonce`)
+      const { nonce } = await res.json()
+
+      // Request wallet authentication
+      const { commandPayload: generateMessageResult, finalPayload } = await MiniKit.commandsAsync.walletAuth({
+        nonce: nonce,
+        requestId: isNewAccount ? 'new_account' : 'login',
+        expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000), // 24 hours ago
+        statement: 'Sign in to InstaINR - Convert your crypto to INR instantly',
+      })
+
+      if (finalPayload.status === 'error') {
+        toast.error("Authentication failed. Please try again.")
+        return
+      }
+
+      // Verify the authentication on the server
+      const response = await fetch('/api/complete-siwe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          payload: finalPayload,
+          nonce,
+        }),
+      })
+
+      const result = await response.json()
+      
+      if (result.status === 'success' && result.isValid) {
+        // Store the wallet address for future use
+        const walletAddress = MiniKit.walletAddress
+        
+        if (isNewAccount) {
+          // For new accounts, proceed to onboarding
+          setShowOnboarding(true)
+        } else {
+          // For existing accounts, redirect to dashboard
+          router.push("/dashboard")
+        }
+      } else {
+        toast.error("Authentication verification failed. Please try again.")
+      }
+    } catch (error) {
+      console.error("Authentication error:", error)
+      toast.error("An error occurred during authentication. Please try again.")
+    } finally {
+      setIsAuthenticating(false)
+    }
+  }
+
+  const handleLogin = () => {
+    authenticateWithWallet(false)
   }
 
   const handleCreateAccount = () => {
-    if (!isWorldApp) {
-      return
-    }
-    setShowOnboarding(true)
+    authenticateWithWallet(true)
   }
 
   const openInWorldApp = () => {
@@ -75,10 +132,10 @@ export default function AuthScreen() {
           <Button 
             className="w-full h-12 bg-blue-600 hover:bg-blue-700" 
             onClick={handleLogin}
-            disabled={!isWorldApp}
+            disabled={!isWorldApp || isAuthenticating}
           >
             <Wallet className="mr-2 h-5 w-5" />
-            Login with World Wallet
+            {isAuthenticating ? "Connecting..." : "Login with World Wallet"}
           </Button>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -92,10 +149,10 @@ export default function AuthScreen() {
             variant="outline"
             className="w-full h-12 border-zinc-700 hover:bg-zinc-800"
             onClick={handleCreateAccount}
-            disabled={!isWorldApp}
+            disabled={!isWorldApp || isAuthenticating}
           >
             <UserPlus className="mr-2 h-5 w-5" />
-            Create a New Account
+            {isAuthenticating ? "Connecting..." : "Create a New Account"}
           </Button>
         </CardContent>
         <CardFooter className="text-xs text-center text-zinc-500">
