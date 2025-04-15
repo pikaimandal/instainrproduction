@@ -1,25 +1,42 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Wallet, UserPlus } from "lucide-react"
 import OnboardingFlow from "@/components/onboarding-flow"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { MiniKit } from "@worldcoin/minikit-js"
 
 export default function AuthScreen() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
+  const [isWorldApp, setIsWorldApp] = useState(false)
   const router = useRouter()
 
+  useEffect(() => {
+    // Check if running inside World App
+    setIsWorldApp(MiniKit.isInstalled())
+  }, [])
+
   const handleLogin = () => {
+    if (!isWorldApp) {
+      // Show error or redirect to download World App
+      alert("Please open this app in World App to continue")
+      return
+    }
     // In a real app, this would authenticate with World Wallet
     router.push("/dashboard")
   }
 
   const handleCreateAccount = () => {
+    if (!isWorldApp) {
+      // Show error or redirect to download World App
+      alert("Please open this app in World App to continue")
+      return
+    }
     setShowOnboarding(true)
   }
 
