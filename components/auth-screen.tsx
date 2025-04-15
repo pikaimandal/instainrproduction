@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Wallet, UserPlus } from "lucide-react"
+import { Wallet, UserPlus, ExternalLink } from "lucide-react"
 import OnboardingFlow from "@/components/onboarding-flow"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { MiniKit } from "@worldcoin/minikit-js"
@@ -23,8 +23,6 @@ export default function AuthScreen() {
 
   const handleLogin = () => {
     if (!isWorldApp) {
-      // Show error or redirect to download World App
-      alert("Please open this app in World App to continue")
       return
     }
     // In a real app, this would authenticate with World Wallet
@@ -33,11 +31,13 @@ export default function AuthScreen() {
 
   const handleCreateAccount = () => {
     if (!isWorldApp) {
-      // Show error or redirect to download World App
-      alert("Please open this app in World App to continue")
       return
     }
     setShowOnboarding(true)
+  }
+
+  const openInWorldApp = () => {
+    window.open("https://worldcoin.org/ecosystem/app_a694eef5223a11d38b4f737fad00e561", "_blank")
   }
 
   if (showOnboarding) {
@@ -58,9 +58,25 @@ export default function AuthScreen() {
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">Welcome</CardTitle>
           <CardDescription>Sign in or create a new account</CardDescription>
+          {!isWorldApp && (
+            <div className="mt-2 p-3 bg-red-900/30 border border-red-800 rounded-md text-red-400 text-sm">
+              InstaINR requires World App to function.{" "}
+              <button 
+                onClick={openInWorldApp} 
+                className="inline-flex items-center text-blue-400 hover:underline"
+              >
+                Click here <ExternalLink className="ml-1 h-3 w-3" />
+              </button>{" "}
+              to open it in World App.
+            </div>
+          )}
         </CardHeader>
         <CardContent className="grid gap-4">
-          <Button className="w-full h-12 bg-blue-600 hover:bg-blue-700" onClick={handleLogin}>
+          <Button 
+            className="w-full h-12 bg-blue-600 hover:bg-blue-700" 
+            onClick={handleLogin}
+            disabled={!isWorldApp}
+          >
             <Wallet className="mr-2 h-5 w-5" />
             Login with World Wallet
           </Button>
@@ -76,6 +92,7 @@ export default function AuthScreen() {
             variant="outline"
             className="w-full h-12 border-zinc-700 hover:bg-zinc-800"
             onClick={handleCreateAccount}
+            disabled={!isWorldApp}
           >
             <UserPlus className="mr-2 h-5 w-5" />
             Create a New Account
