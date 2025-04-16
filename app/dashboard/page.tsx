@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -9,6 +9,8 @@ import DashboardHeader from "@/components/dashboard-header"
 import ConvertForm from "@/components/convert-form"
 import WalletCard from "@/components/wallet-card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { MiniKit } from "@worldcoin/minikit-js"
+import { toast } from "sonner"
 
 export default function Dashboard() {
   const [walletData, setWalletData] = useState({
@@ -19,12 +21,42 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showComingSoon, setShowComingSoon] = useState(false)
 
-  const refreshWalletData = () => {
+  // Function to fetch real wallet balances
+  const fetchWalletBalances = async () => {
     setIsRefreshing(true)
 
-    // Simulate API call to refresh wallet data
-    setTimeout(() => {
-      // Add small random fluctuations to balances, values and rates
+    try {
+      // Check if wallet is connected and we have the address
+      const walletAddress = MiniKit.walletAddress
+      
+      if (!walletAddress) {
+        console.error("Wallet address not available")
+        setIsRefreshing(false)
+        return
+      }
+
+      // Call the API to get real wallet balances
+      const response = await fetch('/api/get-wallet-balance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ walletAddress }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch wallet balances')
+      }
+
+      const data = await response.json()
+      
+      // Update wallet data with real balances
+      setWalletData(data)
+    } catch (error) {
+      console.error("Error fetching wallet balances:", error)
+      toast.error("Failed to refresh wallet balances. Using cached data.")
+      
+      // As a fallback, add small random fluctuations to existing balances
       const newWldRate = Math.round(walletData.wld.rate + (Math.random() * 2 - 1))
       const newEthRate = Math.round(walletData.eth.rate + (Math.random() * 2000 - 1000))
       const newUsdcRate = Math.round(walletData.usdc.rate + (Math.random() * 2 - 1))
@@ -46,8 +78,19 @@ export default function Dashboard() {
           rate: newUsdcRate,
         },
       })
+    } finally {
       setIsRefreshing(false)
-    }, 1000)
+    }
+  }
+
+  // Fetch real balances on initial load
+  useEffect(() => {
+    fetchWalletBalances()
+  }, [])
+
+  // Use the fetchWalletBalances function for the refresh button
+  const refreshWalletData = () => {
+    fetchWalletBalances()
   }
 
   return (
