@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Clear nonce cookie after successful verification
+      // Create response object
       const response = NextResponse.json({ 
         success: true,
         address: body.payload.address,
@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         isNewUser: user.full_name === 'New User'
       });
       
+      // Clear nonce cookie
       response.cookies.set({
         name: 'siwe-nonce',
         value: '',

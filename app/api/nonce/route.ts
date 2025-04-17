@@ -7,7 +7,7 @@ export async function GET() {
   // Create response with nonce
   const response = NextResponse.json({ nonce });
   
-  // Set nonce in a cookie using response headers
+  // Set nonce in a cookie using response object
   response.cookies.set({
     name: 'siwe-nonce',
     value: nonce,

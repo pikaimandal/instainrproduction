@@ -1,0 +1,10 @@
+{
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://qrohxcarlhalfstmzpif.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyb2h4Y2FybGhhbGZzdG16cGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4NzA4NDAsImV4cCI6MjA2MDQ0Njg0MH0.xS5rSeFALOjzorOru97G0XpsuqyYZfDbq644BcP8LwA",
+    "WORLDCOIN_DEVELOPER_API_KEY": "api_a2V5X2QyN2Q0OTY4N2U2NmZmZWQ0OTRkM2RmNjRkMzdkZjZiOnNrX2FhMmQxZjUzNzYyMGJjYjVkNTFkZTEyNzk2NjZlYmZjZDcyMmU5ODQ1OWU0NmU1Ng"
+  }
+} 

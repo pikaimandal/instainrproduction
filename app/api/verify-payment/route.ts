@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { getTransactionByReferenceId, updateTransactionStatus } from '@/lib/services/transactionService'
 
-// Worldcoin Developer Portal API Key - in a real app, this should be in an environment variable
-const DEV_PORTAL_API_KEY = 'wld_dev_api_key'
-const APP_ID = process.env.NEXT_PUBLIC_WORLD_APP_ID
+// Get Worldcoin credentials from environment variables
+const DEV_PORTAL_API_KEY = process.env.WORLDCOIN_DEVELOPER_API_KEY || '';
+const APP_ID = process.env.NEXT_PUBLIC_WORLD_APP_ID || '';
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,6 +40,15 @@ export async function POST(req: NextRequest) {
       }, { status: 404 })
     }
     
+    // Check if API key is available
+    if (!DEV_PORTAL_API_KEY) {
+      console.error('Worldcoin Developer API Key not configured');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Payment verification service is not properly configured' 
+      }, { status: 500 })
+    }
+    
     // Verify the transaction with Worldcoin Developer Portal
     const response = await fetch(
       `https://developer.worldcoin.org/api/v2/minikit/transaction/${transactionId}?app_id=${APP_ID}&type=payment`,
@@ -51,6 +60,14 @@ export async function POST(req: NextRequest) {
         }
       }
     )
+    
+    if (!response.ok) {
+      console.error('Error from Worldcoin API:', await response.text());
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to verify transaction with World API' 
+      }, { status: 500 })
+    }
     
     const transaction = await response.json()
     
@@ -73,8 +90,8 @@ export async function POST(req: NextRequest) {
         }, { status: 500 })
       }
       
-      // Clear the payment cookie as it's no longer needed
-      const response = NextResponse.json({ 
+      // Create response and clear the payment cookie as it's no longer needed
+      const apiResponse = NextResponse.json({ 
         success: true,
         transaction: {
           id: updatedTransaction.id,
@@ -88,14 +105,15 @@ export async function POST(req: NextRequest) {
         }
       })
       
-      response.cookies.set({
+      // Clear cookie
+      apiResponse.cookies.set({
         name: 'payment_details',
         value: '',
         expires: new Date(0),
         path: '/'
       })
       
-      return response
+      return apiResponse
     } else {
       // Update transaction as failed in our database
       await updateTransactionStatus(paymentDetails.referenceId, 'failed')

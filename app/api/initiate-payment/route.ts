@@ -56,8 +56,14 @@ export async function POST(request: Request) {
       timestamp: Date.now()
     }
 
-    // Set the cookie with the payment details
-    cookies().set({
+    // Create response with cookie
+    const response = NextResponse.json({ 
+      success: true, 
+      referenceId 
+    })
+
+    // Set the cookie
+    response.cookies.set({
       name: 'payment_details',
       value: JSON.stringify(paymentDetails),
       httpOnly: true,
@@ -66,10 +72,7 @@ export async function POST(request: Request) {
       path: '/'
     })
 
-    return NextResponse.json({ 
-      success: true, 
-      referenceId 
-    })
+    return response
   } catch (error) {
     console.error('Payment initiation error:', error)
     return NextResponse.json({ 
