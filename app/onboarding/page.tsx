@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Image from 'next/image'
-import Logo from '../../public/instainr-logo.png'
+import Logo from '../../public/placeholder-logo.png'
 
 export default function OnboardingPage() {
   const router = useRouter()

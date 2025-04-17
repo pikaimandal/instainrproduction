@@ -11,7 +11,7 @@ import { MiniKit, MiniAppWalletAuthSuccessPayload } from "@worldcoin/minikit-js"
 import { toast } from "sonner"
 
 import Image from 'next/image'
-import Logo from '../public/instainr-logo.png'
+import Logo from '../public/placeholder-logo.png'
 
 export default function AuthScreen() {
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -110,10 +110,6 @@ export default function AuthScreen() {
 
   const openInWorldApp = () => {
     window.open("https://worldcoin.org/download", "_blank")
-  }
-
-  if (showOnboarding) {
-    return <OnboardingFlow />
   }
 
   return (
