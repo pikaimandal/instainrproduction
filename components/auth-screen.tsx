@@ -21,8 +21,13 @@ export default function AuthScreen() {
   useEffect(() => {
     // Check if running inside World App
     const checkIsWorldApp = async () => {
-      const isInstalled = await MiniKit.isInstalled()
-      setIsWorldApp(isInstalled)
+      try {
+        const isInstalled = await MiniKit.isInstalled()
+        setIsWorldApp(isInstalled)
+      } catch (error) {
+        console.error('Error checking if World App is installed:', error)
+        setIsWorldApp(false)
+      }
     }
     
     checkIsWorldApp()
@@ -30,6 +35,7 @@ export default function AuthScreen() {
 
   const authenticateWithWallet = async (isNewAccount: boolean) => {
     if (!isWorldApp) {
+      toast.error("World App is required for authentication")
       return
     }
     
@@ -54,9 +60,14 @@ export default function AuthScreen() {
         notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000), // 24 hours ago
       }
       
+      // Check if MiniKit commands are available
+      if (!MiniKit.commandsAsync?.walletAuth) {
+        throw new Error("World App authentication is not available")
+      }
+      
       const { commandPayload: generateMessageResult, finalPayload } = await MiniKit.commandsAsync.walletAuth(authRequest)
       
-      if (finalPayload.status === 'error') {
+      if (!finalPayload || finalPayload.status === 'error') {
         toast.error("Authentication failed. Please try again.")
         return
       }

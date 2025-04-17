@@ -26,6 +26,11 @@ export const supabase = createClient(
   }
 );
 
+// Helper function to check if Supabase is properly initialized
+export const isSupabaseInitialized = () => {
+  return !!supabaseUrl && !!supabaseAnonKey;
+};
+
 // For server-side operations that require higher privileges (admin)
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 export const supabaseAdmin = createClient(

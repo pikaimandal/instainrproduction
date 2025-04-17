@@ -25,34 +25,42 @@ export async function POST(request: NextRequest) {
     const result = await verifySiweMessage(body.payload, body.nonce);
     
     if (result.isValid) {
-      // Find or create the user in Supabase based on wallet address
-      const user = await findOrCreateUserByWalletAddress(body.payload.address);
-      
-      if (!user) {
+      try {
+        // Find or create the user in Supabase based on wallet address
+        const user = await findOrCreateUserByWalletAddress(body.payload.address);
+        
+        if (!user) {
+          return NextResponse.json(
+            { error: 'Failed to create user record. Please try again later.' },
+            { status: 500 }
+          );
+        }
+
+        // Create response object
+        const response = NextResponse.json({ 
+          success: true,
+          address: body.payload.address,
+          userId: user.id,
+          isProfileComplete: isUserProfileComplete(user),
+          isNewUser: user.full_name === 'New User'
+        });
+        
+        // Clear nonce cookie
+        response.cookies.set({
+          name: 'siwe-nonce',
+          value: '',
+          expires: new Date(0),
+          path: '/'
+        });
+        
+        return response;
+      } catch (dbError) {
+        console.error('Database error during user creation:', dbError);
         return NextResponse.json(
-          { error: 'Failed to create user record.' },
+          { error: 'Server error while accessing user data. Please try again later.' },
           { status: 500 }
         );
       }
-
-      // Create response object
-      const response = NextResponse.json({ 
-        success: true,
-        address: body.payload.address,
-        userId: user.id,
-        isProfileComplete: isUserProfileComplete(user),
-        isNewUser: user.full_name === 'New User'
-      });
-      
-      // Clear nonce cookie
-      response.cookies.set({
-        name: 'siwe-nonce',
-        value: '',
-        expires: new Date(0),
-        path: '/'
-      });
-      
-      return response;
     } else {
       return NextResponse.json(
         { error: 'Verification failed. Please try again.' },
@@ -62,7 +70,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error during verification:', error);
     return NextResponse.json(
-      { error: 'Server error during verification.' },
+      { error: 'Server error during verification. Please try again later.' },
       { status: 500 }
     );
   }

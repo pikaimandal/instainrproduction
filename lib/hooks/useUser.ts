@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { getUserByWalletAddress } from "@/lib/services/userService";
 import { getBankPaymentMethods, getUpiPaymentMethods } from "@/lib/services/paymentMethodService";
 import { User, BankPaymentMethod, UpiPaymentMethod } from "@/types/database";
+import { isSupabaseInitialized } from "@/lib/supabase";
 
 export interface UserData {
   user: User | null;
@@ -30,6 +31,13 @@ export function useUser(): UserData {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Check if Supabase is initialized
+      if (!isSupabaseInitialized()) {
+        setError("Database connection is not available. Please check your internet connection and try again.");
+        setIsLoading(false);
+        return;
+      }
       
       const walletAddress = localStorage.getItem("wallet_address");
       if (!walletAddress) {
