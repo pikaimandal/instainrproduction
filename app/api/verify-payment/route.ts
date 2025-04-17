@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Get the payment details from the cookie
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const paymentDetailsCookie = cookieStore.get('payment_details')
     
     if (!paymentDetailsCookie) {
