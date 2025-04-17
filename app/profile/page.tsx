@@ -20,9 +20,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 export default function Profile() {
   const { user, paymentMethods, isLoading, error } = useUser();
   const [notificationSettings, setNotificationSettings] = useState({
-    transaction: true,
-    email: true,
-    whatsapp: false,
+      transaction: true,
+      email: true,
+      whatsapp: false,
   });
   const router = useRouter();
 
@@ -133,9 +133,9 @@ export default function Profile() {
               <p className="text-zinc-400">{user.email || 'No email provided'}</p>
               <div className="flex items-center mt-1">
                 {isKycVerified ? (
-                  <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
-                    KYC Verified
-                  </Badge>
+                <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+                  KYC Verified
+                </Badge>
                 ) : (
                   <Badge variant="outline" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
                     KYC Incomplete
@@ -193,22 +193,64 @@ export default function Profile() {
                 <TabsContent value="all" className="pt-4 space-y-3">
                   {formattedPaymentMethods.length > 0 ? (
                     formattedPaymentMethods.map((method, index) => (
-                      <Link
+                    <Link
                         href={`/profile/payment-methods/edit?id=${method.id}`}
-                        key={index}
-                      >
+                      key={index}
+                    >
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
+                        <div className="flex items-center">
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                              method.type === "bank" ? "bg-purple-500/20" : "bg-blue-500/20"
+                            }`}
+                          >
+                            {method.type === "bank" ? (
+                              <CreditCard className="h-5 w-5 text-purple-400" />
+                            ) : (
+                              <div className="text-blue-400 font-bold">UPI</div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center">
+                              <p className="font-medium">{method.name}</p>
+                              {method.primary && (
+                                <Badge
+                                  variant="outline"
+                                  className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                >
+                                  Primary
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-zinc-500">{method.details}</p>
+                          </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-zinc-400" />
+                      </div>
+                    </Link>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-zinc-500">
+                      <p>No payment methods added</p>
+                    </div>
+                  )}
+                  <Link href="/profile/payment-methods/add">
+                    <Button variant="outline" className="w-full border-dashed border-zinc-700 hover:bg-zinc-800">
+                      + Add Payment Method
+                    </Button>
+                  </Link>
+                </TabsContent>
+
+                <TabsContent value="bank" className="pt-4 space-y-3">
+                  {formattedPaymentMethods.filter(m => m.type === "bank").length > 0 ? (
+                    formattedPaymentMethods
+                    .filter((method) => method.type === "bank")
+                    .map((method, index) => (
+                        <Link href={`/profile/payment-methods/edit?id=${method.id}`} key={index}>
                         <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
                           <div className="flex items-center">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
-                                method.type === "bank" ? "bg-purple-500/20" : "bg-blue-500/20"
-                              }`}
-                            >
-                              {method.type === "bank" ? (
-                                <CreditCard className="h-5 w-5 text-purple-400" />
-                              ) : (
-                                <div className="text-blue-400 font-bold">UPI</div>
-                              )}
+                            <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mr-3">
+                              <CreditCard className="h-5 w-5 text-purple-400" />
                             </div>
                             <div>
                               <div className="flex items-center">
@@ -228,48 +270,6 @@ export default function Profile() {
                           <ChevronRight className="h-5 w-5 text-zinc-400" />
                         </div>
                       </Link>
-                    ))
-                  ) : (
-                    <div className="text-center py-6 text-zinc-500">
-                      <p>No payment methods added</p>
-                    </div>
-                  )}
-                  <Link href="/profile/payment-methods/add">
-                    <Button variant="outline" className="w-full border-dashed border-zinc-700 hover:bg-zinc-800">
-                      + Add Payment Method
-                    </Button>
-                  </Link>
-                </TabsContent>
-
-                <TabsContent value="bank" className="pt-4 space-y-3">
-                  {formattedPaymentMethods.filter(m => m.type === "bank").length > 0 ? (
-                    formattedPaymentMethods
-                      .filter((method) => method.type === "bank")
-                      .map((method, index) => (
-                        <Link href={`/profile/payment-methods/edit?id=${method.id}`} key={index}>
-                          <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
-                            <div className="flex items-center">
-                              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mr-3">
-                                <CreditCard className="h-5 w-5 text-purple-400" />
-                              </div>
-                              <div>
-                                <div className="flex items-center">
-                                  <p className="font-medium">{method.name}</p>
-                                  {method.primary && (
-                                    <Badge
-                                      variant="outline"
-                                      className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                    >
-                                      Primary
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-xs text-zinc-500">{method.details}</p>
-                              </div>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-zinc-400" />
-                          </div>
-                        </Link>
                       ))
                   ) : (
                     <div className="text-center py-6 text-zinc-500">
@@ -286,32 +286,32 @@ export default function Profile() {
                 <TabsContent value="upi" className="pt-4 space-y-3">
                   {formattedPaymentMethods.filter(m => m.type === "upi").length > 0 ? (
                     formattedPaymentMethods
-                      .filter((method) => method.type === "upi")
-                      .map((method, index) => (
+                    .filter((method) => method.type === "upi")
+                    .map((method, index) => (
                         <Link href={`/profile/payment-methods/edit?id=${method.id}`} key={index}>
-                          <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
-                            <div className="flex items-center">
-                              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center mr-3">
-                                <div className="text-blue-400 font-bold">UPI</div>
-                              </div>
-                              <div>
-                                <div className="flex items-center">
-                                  <p className="font-medium">{method.name}</p>
-                                  {method.primary && (
-                                    <Badge
-                                      variant="outline"
-                                      className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                    >
-                                      Primary
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-xs text-zinc-500">{method.details}</p>
-                              </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center mr-3">
+                              <div className="text-blue-400 font-bold">UPI</div>
                             </div>
-                            <ChevronRight className="h-5 w-5 text-zinc-400" />
+                            <div>
+                              <div className="flex items-center">
+                                <p className="font-medium">{method.name}</p>
+                                {method.primary && (
+                                  <Badge
+                                    variant="outline"
+                                    className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                  >
+                                    Primary
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-zinc-500">{method.details}</p>
+                            </div>
                           </div>
-                        </Link>
+                          <ChevronRight className="h-5 w-5 text-zinc-400" />
+                        </div>
+                      </Link>
                       ))
                   ) : (
                     <div className="text-center py-6 text-zinc-500">

@@ -33,25 +33,38 @@ export function useUser(): UserData {
       
       const walletAddress = localStorage.getItem("wallet_address");
       if (!walletAddress) {
-        throw new Error("No wallet address found");
+        setError("No wallet address found. Please log in again.");
+        setIsLoading(false);
+        return;
       }
       
       // Fetch user data
       const userData = await getUserByWalletAddress(walletAddress);
       if (!userData) {
-        throw new Error("User not found");
+        setError("User not found. Please log in again.");
+        setIsLoading(false);
+        return;
       }
       
       setUser(userData);
       
       // Fetch payment methods
-      const bankMethods = await getBankPaymentMethods(userData.id);
-      const upiMethods = await getUpiPaymentMethods(userData.id);
-      
-      setPaymentMethods({
-        bank: bankMethods || [],
-        upi: upiMethods || [],
-      });
+      try {
+        const bankMethods = await getBankPaymentMethods(userData.id);
+        const upiMethods = await getUpiPaymentMethods(userData.id);
+        
+        setPaymentMethods({
+          bank: bankMethods || [],
+          upi: upiMethods || [],
+        });
+      } catch (paymentError) {
+        console.error("Error fetching payment methods:", paymentError);
+        // Don't set error here, just use empty arrays
+        setPaymentMethods({
+          bank: [],
+          upi: [],
+        });
+      }
     } catch (err) {
       console.error("Error fetching user data:", err);
       setError(err instanceof Error ? err.message : "Failed to load user data");

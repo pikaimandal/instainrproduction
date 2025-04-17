@@ -4,30 +4,39 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Throw clear error messages in development but use sensible defaults in production
+// Log warning if environment variables are missing
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:',
+  console.warn('Missing Supabase environment variables:',
     !supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL' : '',
     !supabaseAnonKey ? 'NEXT_PUBLIC_SUPABASE_ANON_KEY' : ''
   );
-  
-  // Only throw in development to prevent crashing the production app
-  if (process.env.NODE_ENV === 'development') {
-    throw new Error('Missing required Supabase environment variables. Check .env.local file.');
-  }
 }
 
 // For client-side usage - use empty strings as fallbacks to prevent runtime errors
+// but log a warning if we're in development
 export const supabase = createClient(
   supabaseUrl || '', 
-  supabaseAnonKey || ''
+  supabaseAnonKey || '',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
 );
 
 // For server-side operations that require higher privileges (admin)
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 export const supabaseAdmin = createClient(
   supabaseUrl || '', 
-  supabaseServiceKey || ''
+  supabaseServiceKey || '',
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  }
 );
 
 export default supabase; 
