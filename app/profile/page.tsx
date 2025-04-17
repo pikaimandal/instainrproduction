@@ -14,49 +14,31 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Switch } from "@/components/ui/switch"
+import { useUser } from "@/lib/hooks/useUser"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Profile() {
-  const [userData] = useState({
-    name: "Rahul Sharma",
-    email: "rahul.sharma@example.com",
-    mobile: "+91 9876543210",
-    kycStatus: "verified",
-    aadhaar: "XXXX XXXX 1234",
-    pan: "ABCDE1234F",
-    paymentMethods: [
-      {
-        type: "bank",
-        name: "HDFC Bank",
-        details: "XXXX XXXX 5678",
-        primary: true,
-      },
-      {
-        type: "upi",
-        name: "UPI ID",
-        details: "rahul@okaxis",
-        primary: false,
-      },
-    ],
-    notificationSettings: {
-      transaction: true,
-      email: true,
-      whatsapp: false,
-    },
-  })
-
-  const [notificationSettings, setNotificationSettings] = useState(userData.notificationSettings)
-  const router = useRouter()
+  const { user, paymentMethods, isLoading, error } = useUser();
+  const [notificationSettings, setNotificationSettings] = useState({
+    transaction: true,
+    email: true,
+    whatsapp: false,
+  });
+  const router = useRouter();
 
   const handleLogout = () => {
-    // In a real app, this would clear auth tokens, etc.
-    router.push("/")
+    // Clear localStorage
+    localStorage.removeItem('wallet_address');
+    localStorage.removeItem('user_id');
+    // Redirect to auth page
+    router.push("/");
   }
 
   const handleNotificationToggle = (type: keyof typeof notificationSettings) => {
     setNotificationSettings({
       ...notificationSettings,
       [type]: !notificationSettings[type],
-    })
+    });
   }
 
   const faqs = [
@@ -83,7 +65,55 @@ export default function Profile() {
       answer:
         "Currently, InstaINR supports WLD (Worldcoin), ETH (Ethereum), and USDC (USD Coin). More cryptocurrencies will be added soon.",
     },
-  ]
+  ];
+
+  if (isLoading) {
+    return <ProfileSkeleton />;
+  }
+
+  if (error || !user) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 max-w-md mx-auto">
+          <h2 className="text-lg font-semibold mb-2">Error Loading Profile</h2>
+          <p>{error || "User data not found. Please try logging in again."}</p>
+          <Button
+            onClick={handleLogout}
+            className="mt-4 w-full bg-red-500 hover:bg-red-600 text-white"
+          >
+            Return to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Format user data for display
+  const formattedMobileNumber = user.mobile_number ? `+91 ${user.mobile_number}` : 'Not provided';
+  const formattedAadhaar = user.aadhaar_number 
+    ? `XXXX XXXX ${user.aadhaar_number.slice(-4)}` 
+    : 'Not provided';
+  const formattedPan = user.pan_number || 'Not provided';
+  
+  // Convert payment methods to display format
+  const formattedPaymentMethods = [
+    ...paymentMethods.bank.map(bank => ({
+      type: "bank",
+      name: bank.bank_name,
+      details: `XXXX XXXX ${bank.account_number.slice(-4)}`,
+      primary: bank.is_default,
+      id: bank.id
+    })),
+    ...paymentMethods.upi.map(upi => ({
+      type: "upi",
+      name: "UPI ID",
+      details: upi.upi_id,
+      primary: upi.is_default,
+      id: upi.id
+    }))
+  ];
+
+  const isKycVerified = !!(user.aadhaar_number && user.pan_number);
 
   return (
     <main className="min-h-screen bg-black">
@@ -92,19 +122,25 @@ export default function Profile() {
           <div className="flex items-center mb-6">
             <Avatar className="h-16 w-16 mr-4 border-2 border-blue-500">
               <AvatarFallback className="bg-blue-600 text-white text-xl">
-                {userData.name
+                {user.full_name
                   .split(" ")
                   .map((n) => n[0])
                   .join("")}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-bold">{userData.name}</h1>
-              <p className="text-zinc-400">{userData.email}</p>
+              <h1 className="text-2xl font-bold">{user.full_name}</h1>
+              <p className="text-zinc-400">{user.email || 'No email provided'}</p>
               <div className="flex items-center mt-1">
-                <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
-                  KYC Verified
-                </Badge>
+                {isKycVerified ? (
+                  <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+                    KYC Verified
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                    KYC Incomplete
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
@@ -120,21 +156,21 @@ export default function Profile() {
                   <ProfileItem
                     icon={<User className="h-5 w-5 text-blue-400" />}
                     title="Personal Information"
-                    description="Name, Email, Mobile"
+                    description={`${user.full_name} · ${formattedMobileNumber}`}
                   />
                 </Link>
                 <Link href="/profile/kyc-info">
                   <ProfileItem
                     icon={<Shield className="h-5 w-5 text-green-400" />}
                     title="KYC Information"
-                    description="Aadhaar, PAN"
+                    description={`${formattedAadhaar} · ${formattedPan}`}
                   />
                 </Link>
                 <Link href="/profile/payment-methods">
                   <ProfileItem
                     icon={<CreditCard className="h-5 w-5 text-purple-400" />}
                     title="Payment Methods"
-                    description="Bank, UPI"
+                    description={`${formattedPaymentMethods.length} method${formattedPaymentMethods.length !== 1 ? 's' : ''}`}
                   />
                 </Link>
               </div>
@@ -155,43 +191,49 @@ export default function Profile() {
                 </TabsList>
 
                 <TabsContent value="all" className="pt-4 space-y-3">
-                  {userData.paymentMethods.map((method, index) => (
-                    <Link
-                      href={`/profile/payment-methods/edit?id=${method.type === "bank" ? "bank1" : "upi1"}`}
-                      key={index}
-                    >
-                      <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
-                        <div className="flex items-center">
-                          <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
-                              method.type === "bank" ? "bg-purple-500/20" : "bg-blue-500/20"
-                            }`}
-                          >
-                            {method.type === "bank" ? (
-                              <CreditCard className="h-5 w-5 text-purple-400" />
-                            ) : (
-                              <div className="text-blue-400 font-bold">UPI</div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center">
-                              <p className="font-medium">{method.name}</p>
-                              {method.primary && (
-                                <Badge
-                                  variant="outline"
-                                  className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                >
-                                  Primary
-                                </Badge>
+                  {formattedPaymentMethods.length > 0 ? (
+                    formattedPaymentMethods.map((method, index) => (
+                      <Link
+                        href={`/profile/payment-methods/edit?id=${method.id}`}
+                        key={index}
+                      >
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
+                          <div className="flex items-center">
+                            <div
+                              className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                                method.type === "bank" ? "bg-purple-500/20" : "bg-blue-500/20"
+                              }`}
+                            >
+                              {method.type === "bank" ? (
+                                <CreditCard className="h-5 w-5 text-purple-400" />
+                              ) : (
+                                <div className="text-blue-400 font-bold">UPI</div>
                               )}
                             </div>
-                            <p className="text-xs text-zinc-500">{method.details}</p>
+                            <div>
+                              <div className="flex items-center">
+                                <p className="font-medium">{method.name}</p>
+                                {method.primary && (
+                                  <Badge
+                                    variant="outline"
+                                    className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                  >
+                                    Primary
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-zinc-500">{method.details}</p>
+                            </div>
                           </div>
+                          <ChevronRight className="h-5 w-5 text-zinc-400" />
                         </div>
-                        <ChevronRight className="h-5 w-5 text-zinc-400" />
-                      </div>
-                    </Link>
-                  ))}
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-zinc-500">
+                      <p>No payment methods added</p>
+                    </div>
+                  )}
                   <Link href="/profile/payment-methods/add">
                     <Button variant="outline" className="w-full border-dashed border-zinc-700 hover:bg-zinc-800">
                       + Add Payment Method
@@ -200,34 +242,40 @@ export default function Profile() {
                 </TabsContent>
 
                 <TabsContent value="bank" className="pt-4 space-y-3">
-                  {userData.paymentMethods
-                    .filter((method) => method.type === "bank")
-                    .map((method, index) => (
-                      <Link href="/profile/payment-methods/edit?id=bank1" key={index}>
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mr-3">
-                              <CreditCard className="h-5 w-5 text-purple-400" />
-                            </div>
-                            <div>
-                              <div className="flex items-center">
-                                <p className="font-medium">{method.name}</p>
-                                {method.primary && (
-                                  <Badge
-                                    variant="outline"
-                                    className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                  >
-                                    Primary
-                                  </Badge>
-                                )}
+                  {formattedPaymentMethods.filter(m => m.type === "bank").length > 0 ? (
+                    formattedPaymentMethods
+                      .filter((method) => method.type === "bank")
+                      .map((method, index) => (
+                        <Link href={`/profile/payment-methods/edit?id=${method.id}`} key={index}>
+                          <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mr-3">
+                                <CreditCard className="h-5 w-5 text-purple-400" />
                               </div>
-                              <p className="text-xs text-zinc-500">{method.details}</p>
+                              <div>
+                                <div className="flex items-center">
+                                  <p className="font-medium">{method.name}</p>
+                                  {method.primary && (
+                                    <Badge
+                                      variant="outline"
+                                      className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                    >
+                                      Primary
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-zinc-500">{method.details}</p>
+                              </div>
                             </div>
+                            <ChevronRight className="h-5 w-5 text-zinc-400" />
                           </div>
-                          <ChevronRight className="h-5 w-5 text-zinc-400" />
-                        </div>
-                      </Link>
-                    ))}
+                        </Link>
+                      ))
+                  ) : (
+                    <div className="text-center py-6 text-zinc-500">
+                      <p>No bank accounts added</p>
+                    </div>
+                  )}
                   <Link href="/profile/payment-methods/add">
                     <Button variant="outline" className="w-full border-dashed border-zinc-700 hover:bg-zinc-800">
                       + Add Bank Account
@@ -236,34 +284,40 @@ export default function Profile() {
                 </TabsContent>
 
                 <TabsContent value="upi" className="pt-4 space-y-3">
-                  {userData.paymentMethods
-                    .filter((method) => method.type === "upi")
-                    .map((method, index) => (
-                      <Link href="/profile/payment-methods/edit?id=upi1" key={index}>
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center mr-3">
-                              <div className="text-blue-400 font-bold">UPI</div>
-                            </div>
-                            <div>
-                              <div className="flex items-center">
-                                <p className="font-medium">{method.name}</p>
-                                {method.primary && (
-                                  <Badge
-                                    variant="outline"
-                                    className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                  >
-                                    Primary
-                                  </Badge>
-                                )}
+                  {formattedPaymentMethods.filter(m => m.type === "upi").length > 0 ? (
+                    formattedPaymentMethods
+                      .filter((method) => method.type === "upi")
+                      .map((method, index) => (
+                        <Link href={`/profile/payment-methods/edit?id=${method.id}`} key={index}>
+                          <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center mr-3">
+                                <div className="text-blue-400 font-bold">UPI</div>
                               </div>
-                              <p className="text-xs text-zinc-500">{method.details}</p>
+                              <div>
+                                <div className="flex items-center">
+                                  <p className="font-medium">{method.name}</p>
+                                  {method.primary && (
+                                    <Badge
+                                      variant="outline"
+                                      className="ml-2 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                    >
+                                      Primary
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-zinc-500">{method.details}</p>
+                              </div>
                             </div>
+                            <ChevronRight className="h-5 w-5 text-zinc-400" />
                           </div>
-                          <ChevronRight className="h-5 w-5 text-zinc-400" />
-                        </div>
-                      </Link>
-                    ))}
+                        </Link>
+                      ))
+                  ) : (
+                    <div className="text-center py-6 text-zinc-500">
+                      <p>No UPI IDs added</p>
+                    </div>
+                  )}
                   <Link href="/profile/payment-methods/add">
                     <Button variant="outline" className="w-full border-dashed border-zinc-700 hover:bg-zinc-800">
                       + Add UPI ID
@@ -428,14 +482,14 @@ export default function Profile() {
 
       <DashboardHeader />
     </main>
-  )
+  );
 }
 
 function ProfileItem({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50 hover:bg-zinc-800 transition-colors">
+    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-zinc-800/50 transition-colors cursor-pointer">
       <div className="flex items-center">
-        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center mr-3">{icon}</div>
+        <div className="mr-3">{icon}</div>
         <div>
           <p className="font-medium">{title}</p>
           <p className="text-xs text-zinc-500">{description}</p>
@@ -443,5 +497,62 @@ function ProfileItem({ icon, title, description }: { icon: React.ReactNode; titl
       </div>
       <ChevronRight className="h-5 w-5 text-zinc-400" />
     </div>
-  )
+  );
+}
+
+function ProfileSkeleton() {
+  return (
+    <main className="min-h-screen bg-black">
+      <div className="container max-w-md mx-auto px-4 pb-20 pt-6">
+        <div className="mb-6">
+          <div className="flex items-center mb-6">
+            <Skeleton className="h-16 w-16 rounded-full mr-4" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+          </div>
+          
+          <Card className="bg-zinc-900 border-zinc-800 mb-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Account Information</CardTitle>
+              <CardDescription>Manage your personal information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-zinc-900 border-zinc-800 mb-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Payment Methods</CardTitle>
+              <CardDescription>Manage your withdrawal methods</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="all">
+                <TabsList className="grid grid-cols-3 bg-zinc-800">
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="bank">Bank</TabsTrigger>
+                  <TabsTrigger value="upi">UPI</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="all" className="pt-4 space-y-3">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+        
+        <DashboardHeader />
+      </div>
+    </main>
+  );
 }

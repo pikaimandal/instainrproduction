@@ -167,7 +167,7 @@ export default function AuthScreen() {
         >
           Privacy Policy
         </span>
-      </div>
+            </div>
       
       {/* Onboarding Dialog */}
       <Dialog
@@ -231,8 +231,8 @@ export default function AuthScreen() {
             InstaINR reserves the right to modify these terms at any time. Your
             continued use of the service after such changes constitutes your
             acceptance of the new terms.
-          </p>
-        </div>
+            </p>
+          </div>
       </Dialog>
 
       {/* Privacy Dialog */}
@@ -284,7 +284,7 @@ export default function AuthScreen() {
             We may update this privacy policy from time to time. We will notify
             you of any changes by posting the new privacy policy on this page.
           </p>
-        </div>
+          </div>
       </Dialog>
     </div>
   )

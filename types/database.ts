@@ -35,6 +35,21 @@ export interface PaymentMethod {
   updated_at: string;
 }
 
+export interface BankPaymentMethod extends Omit<PaymentMethod, 'upi_id' | 'upi_app' | 'upi_mobile_number'> {
+  method_type: 'bank';
+  bank_name: string;
+  account_number: string;
+  ifsc_code: string;
+  account_holder_name: string;
+}
+
+export interface UpiPaymentMethod extends Omit<PaymentMethod, 'bank_name' | 'account_number' | 'ifsc_code' | 'account_holder_name'> {
+  method_type: 'upi';
+  upi_id: string;
+  upi_app: UpiApp;
+  upi_mobile_number: string;
+}
+
 export interface Transaction {
   id: string;
   user_id: string;

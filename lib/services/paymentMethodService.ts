@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { NewPaymentMethod, PaymentMethod, BankDetails, UpiDetails } from '@/types/database';
+import { NewPaymentMethod, PaymentMethod, BankDetails, UpiDetails, BankPaymentMethod, UpiPaymentMethod } from '@/types/database';
 
 /**
  * Get all payment methods for a user
@@ -190,4 +190,42 @@ async function unsetDefaultPaymentMethods(userId: string): Promise<void> {
   if (error) {
     console.error('Error unsetting default payment methods:', error);
   }
+}
+
+/**
+ * Get all bank payment methods for a user
+ */
+export async function getBankPaymentMethods(userId: string): Promise<BankPaymentMethod[]> {
+  const { data, error } = await supabase
+    .from('payment_methods')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('method_type', 'bank')
+    .order('is_default', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching bank payment methods:', error);
+    return [];
+  }
+
+  return data as BankPaymentMethod[];
+}
+
+/**
+ * Get all UPI payment methods for a user
+ */
+export async function getUpiPaymentMethods(userId: string): Promise<UpiPaymentMethod[]> {
+  const { data, error } = await supabase
+    .from('payment_methods')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('method_type', 'upi')
+    .order('is_default', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching UPI payment methods:', error);
+    return [];
+  }
+
+  return data as UpiPaymentMethod[];
 } 
