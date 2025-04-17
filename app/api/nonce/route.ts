@@ -1,12 +1,22 @@
-import { cookies } from "next/headers"
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
 
-export function GET(req: NextRequest) {
-  // Generate a nonce (at least 8 alphanumeric characters)
-  const nonce = crypto.randomUUID().replace(/-/g, "")
-
-  // Store the nonce in a secure cookie
-  cookies().set("siwe", nonce, { secure: true })
+export async function GET() {
+  const nonce = uuidv4();
   
-  return NextResponse.json({ nonce })
+  // Create response with nonce
+  const response = NextResponse.json({ nonce });
+  
+  // Set nonce in a cookie using response headers
+  response.cookies.set({
+    name: 'siwe-nonce',
+    value: nonce,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 10, // 10 minutes
+    path: '/',
+    sameSite: 'strict'
+  });
+
+  return response;
 } 
