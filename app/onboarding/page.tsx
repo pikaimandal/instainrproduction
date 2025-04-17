@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import Image from 'next/image'
-import Logo from '../../public/placeholder-logo.png'
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -43,13 +41,9 @@ export default function OnboardingPage() {
   return (
     <div className="container mx-auto max-w-md py-10">
       <div className="mb-8 flex flex-col items-center">
-        <Image
-          src={Logo}
-          alt="InstaINR Logo"
-          width={80}
-          height={80}
-          className="mb-4"
-        />
+        <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-600 text-white">
+          <span className="text-2xl font-bold">₹</span>
+        </div>
         <h1 className="mb-2 text-2xl font-bold">Complete Your Profile</h1>
         <p className="text-center text-gray-600">
           Please provide the following information to complete your account setup.

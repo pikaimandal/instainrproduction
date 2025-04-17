@@ -10,9 +10,6 @@ import Dialog from '@/components/dialog'
 import { MiniKit, MiniAppWalletAuthSuccessPayload } from "@worldcoin/minikit-js"
 import { toast } from "sonner"
 
-import Image from 'next/image'
-import Logo from '../public/placeholder-logo.png'
-
 export default function AuthScreen() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
@@ -114,13 +111,9 @@ export default function AuthScreen() {
 
   return (
     <div className="flex h-screen flex-col items-center justify-center p-4 text-center">
-      <Image
-        src={Logo}
-        alt="InstaINR Logo"
-        width={100}
-        height={100}
-        className="mb-8"
-      />
+      <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-blue-600 text-white">
+        <span className="text-4xl font-bold">₹</span>
+      </div>
       <h1 className="mb-2 text-3xl font-bold">Welcome</h1>
       <p className="mb-8 text-gray-600">Sign in or create a new account</p>
       
