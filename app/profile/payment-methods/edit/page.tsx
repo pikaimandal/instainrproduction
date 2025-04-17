@@ -10,8 +10,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Save } from "lucide-react"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { ArrowLeft, Save, Trash2 } from "lucide-react"
 import DashboardHeader from "@/components/dashboard-header"
+import { useUser } from "@/lib/hooks/useUser"
+import { Skeleton } from "@/components/ui/skeleton"
+import { deletePaymentMethod, updatePaymentMethod, setDefaultPaymentMethod } from "@/lib/services/paymentMethodService"
+import { toast } from "sonner"
+import { Switch } from "@/components/ui/switch"
 
 // List of major Indian banks
 const INDIAN_BANKS = [
@@ -40,29 +46,11 @@ const INDIAN_BANKS = [
   "Yes Bank",
 ].sort()
 
-// Mock payment methods data
-const paymentMethodsData = [
-  {
-    id: "bank1",
-    type: "bank",
-    bankName: "HDFC Bank",
-    accountNumber: "123456789012",
-    ifsc: "HDFC0001234",
-    accountHolder: "RAHUL SHARMA",
-    primary: true,
-  },
-  {
-    id: "upi1",
-    type: "upi",
-    upiId: "rahul@okaxis",
-    primary: false,
-  },
-]
-
 export default function EditPaymentMethodPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const paymentId = searchParams.get("id")
+  const { user, paymentMethods, isLoading, error, refreshUserData } = useUser()
 
   const [paymentType, setPaymentType] = useState("bank")
   const [formData, setFormData] = useState({
@@ -84,33 +72,52 @@ export default function EditPaymentMethodPage() {
     upiApp: "",
   })
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isPrimary, setIsPrimary] = useState(false)
+
+  // Find the payment method
+  const foundPaymentMethod = paymentId 
+    ? [...paymentMethods.bank, ...paymentMethods.upi].find(method => method.id === paymentId)
+    : null;
 
   // Load payment method data
   useEffect(() => {
-    if (paymentId) {
-      const paymentMethod = paymentMethodsData.find((method) => method.id === paymentId)
-      if (paymentMethod) {
-        setPaymentType(paymentMethod.type)
-        setIsPrimary(paymentMethod.primary)
+    if (foundPaymentMethod) {
+      setPaymentType(foundPaymentMethod.method_type)
+      setIsPrimary(foundPaymentMethod.is_default)
 
-        if (paymentMethod.type === "bank") {
-          setFormData({
-            ...formData,
-            bankName: paymentMethod.bankName,
-            accountNumber: paymentMethod.accountNumber,
-            ifsc: paymentMethod.ifsc,
-            accountHolder: paymentMethod.accountHolder,
-          })
-        } else if (paymentMethod.type === "upi") {
-          setFormData({
-            ...formData,
-            upiId: paymentMethod.upiId,
-          })
-        }
+      if (foundPaymentMethod.method_type === "bank") {
+        const bankMethod = foundPaymentMethod as typeof foundPaymentMethod & {
+          bank_name: string;
+          account_number: string;
+          ifsc_code: string;
+          account_holder_name: string;
+        };
+        
+        setFormData({
+          ...formData,
+          bankName: bankMethod.bank_name,
+          accountNumber: bankMethod.account_number,
+          ifsc: bankMethod.ifsc_code,
+          accountHolder: bankMethod.account_holder_name,
+        })
+      } else if (foundPaymentMethod.method_type === "upi") {
+        const upiMethod = foundPaymentMethod as typeof foundPaymentMethod & {
+          upi_id: string;
+          upi_mobile_number: string;
+          upi_app: string;
+        };
+        
+        setFormData({
+          ...formData,
+          upiId: upiMethod.upi_id,
+          upiMobile: upiMethod.upi_mobile_number || "",
+          upiApp: upiMethod.upi_app,
+        })
       }
     }
-  }, [paymentId])
+  }, [foundPaymentMethod])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -175,16 +182,115 @@ export default function EditPaymentMethodPage() {
     return !Object.values(newErrors).some((error) => error !== "")
   }
 
-  const handleSave = () => {
-    if (!validateForm()) return
+  const handleSave = async () => {
+    if (!validateForm() || !paymentId || !user) return
 
-    setIsSaving(true)
-
-    // Simulate saving
-    setTimeout(() => {
-      setIsSaving(false)
+    try {
+      setIsSaving(true)
+      
+      // Prepare updates based on payment type
+      let updates: any = {}
+      
+      if (paymentType === "bank") {
+        updates = {
+          bank_name: formData.bankName,
+          account_number: formData.accountNumber,
+          ifsc_code: formData.ifsc,
+          account_holder_name: formData.accountHolder,
+        }
+      } else if (paymentType === "upi") {
+        updates = {
+          upi_id: formData.upiId,
+          upi_app: formData.upiApp,
+          upi_mobile_number: formData.upiMobile,
+        }
+      }
+      
+      // Update the payment method
+      const updated = await updatePaymentMethod(paymentId, updates)
+      
+      if (!updated) {
+        throw new Error("Failed to update payment method")
+      }
+      
+      // Handle primary status if changed
+      if (isPrimary !== foundPaymentMethod?.is_default) {
+        if (isPrimary) {
+          await setDefaultPaymentMethod(paymentId, user.id)
+        }
+      }
+      
+      await refreshUserData()
+      toast.success("Payment method updated successfully")
       router.push("/profile/payment-methods")
-    }, 1000)
+    } catch (err) {
+      console.error("Error updating payment method:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to update payment method")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!paymentId) return
+    
+    try {
+      setIsDeleting(true)
+      
+      const deleted = await deletePaymentMethod(paymentId)
+      
+      if (!deleted) {
+        throw new Error("Failed to delete payment method")
+      }
+      
+      await refreshUserData()
+      toast.success("Payment method deleted successfully")
+      router.push("/profile/payment-methods")
+    } catch (err) {
+      console.error("Error deleting payment method:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to delete payment method")
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteDialog(false)
+    }
+  }
+
+  if (isLoading) {
+    return <PaymentMethodSkeleton />
+  }
+
+  if (error || !user) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 max-w-md mx-auto">
+          <h2 className="text-lg font-semibold mb-2">Error Loading Payment Method</h2>
+          <p>{error || "User data not found. Please try logging in again."}</p>
+          <Button
+            onClick={() => router.push("/")}
+            className="mt-4 w-full bg-red-500 hover:bg-red-600 text-white"
+          >
+            Return to Login
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!foundPaymentMethod) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 text-yellow-400 max-w-md mx-auto">
+          <h2 className="text-lg font-semibold mb-2">Payment Method Not Found</h2>
+          <p>The payment method you're trying to edit doesn't exist or has been removed.</p>
+          <Button
+            onClick={() => router.push("/profile/payment-methods")}
+            className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Back to Payment Methods
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -206,7 +312,7 @@ export default function EditPaymentMethodPage() {
               <RadioGroup
                 value={paymentType}
                 onValueChange={setPaymentType}
-                className="grid grid-cols-3 gap-2"
+                className="grid grid-cols-2 gap-2"
                 disabled
               >
                 <div className="flex items-center space-x-2">
@@ -219,12 +325,6 @@ export default function EditPaymentMethodPage() {
                   <RadioGroupItem value="upi" id="upi" className="text-blue-500" />
                   <Label htmlFor="upi" className="cursor-pointer">
                     UPI ID
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="app" id="app" className="text-blue-500" />
-                  <Label htmlFor="app" className="cursor-pointer">
-                    UPI App
                   </Label>
                 </div>
               </RadioGroup>
@@ -248,36 +348,38 @@ export default function EditPaymentMethodPage() {
                   </Select>
                   {errors.bankName && <p className="text-xs text-red-500">{errors.bankName}</p>}
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="accountNumber">Account Number</Label>
                   <Input
                     id="accountNumber"
                     name="accountNumber"
-                    placeholder="1234567890"
                     value={formData.accountNumber}
                     onChange={handleChange}
                     className="bg-zinc-800 border-zinc-700"
+                    maxLength={18}
                   />
                   {errors.accountNumber && <p className="text-xs text-red-500">{errors.accountNumber}</p>}
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="ifsc">IFSC Code</Label>
                   <Input
                     id="ifsc"
                     name="ifsc"
-                    placeholder="HDFC0001234"
                     value={formData.ifsc}
                     onChange={handleChange}
                     className="bg-zinc-800 border-zinc-700"
+                    maxLength={11}
                   />
                   {errors.ifsc && <p className="text-xs text-red-500">{errors.ifsc}</p>}
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="accountHolder">Account Holder Name</Label>
                   <Input
                     id="accountHolder"
                     name="accountHolder"
-                    placeholder="JOHN DOE"
                     value={formData.accountHolder}
                     onChange={handleChange}
                     className="bg-zinc-800 border-zinc-700"
@@ -294,36 +396,14 @@ export default function EditPaymentMethodPage() {
                   <Input
                     id="upiId"
                     name="upiId"
-                    placeholder="name@upi"
                     value={formData.upiId}
                     onChange={handleChange}
                     className="bg-zinc-800 border-zinc-700"
+                    placeholder="yourname@bankname"
                   />
                   {errors.upiId && <p className="text-xs text-red-500">{errors.upiId}</p>}
-                  <p className="text-xs text-zinc-500">Enter your UPI ID (e.g., name@okaxis)</p>
                 </div>
-              </div>
-            )}
 
-            {paymentType === "app" && (
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label htmlFor="upiMobile">Mobile Number</Label>
-                  <div className="flex">
-                    <div className="bg-zinc-800 border border-zinc-700 rounded-l-md px-3 flex items-center text-zinc-400">
-                      +91
-                    </div>
-                    <Input
-                      id="upiMobile"
-                      name="upiMobile"
-                      placeholder="9876543210"
-                      value={formData.upiMobile}
-                      onChange={handleChange}
-                      className="bg-zinc-800 border-zinc-700 rounded-l-none"
-                    />
-                  </div>
-                  {errors.upiMobile && <p className="text-xs text-red-500">{errors.upiMobile}</p>}
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="upiApp">UPI App</Label>
                   <Select value={formData.upiApp} onValueChange={(value) => handleSelectChange("upiApp", value)}>
@@ -339,24 +419,46 @@ export default function EditPaymentMethodPage() {
                   </Select>
                   {errors.upiApp && <p className="text-xs text-red-500">{errors.upiApp}</p>}
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="upiMobile">Mobile Number (Optional)</Label>
+                  <div className="flex">
+                    <div className="bg-zinc-800 border border-zinc-700 rounded-l-md px-3 flex items-center text-zinc-400">
+                      +91
+                    </div>
+                    <Input
+                      id="upiMobile"
+                      name="upiMobile"
+                      value={formData.upiMobile}
+                      onChange={handleChange}
+                      className="bg-zinc-800 border-zinc-700 rounded-l-none"
+                      placeholder="10-digit number"
+                      maxLength={10}
+                    />
+                  </div>
+                  {errors.upiMobile && <p className="text-xs text-red-500">{errors.upiMobile}</p>}
+                </div>
               </div>
             )}
 
-            <div className="flex items-center space-x-2 pt-2">
-              <input
-                type="checkbox"
+            <div className="pt-4 flex items-center justify-between">
+              <Label htmlFor="primary" className="font-medium">
+                Set as Primary Method
+              </Label>
+              <Switch
                 id="primary"
                 checked={isPrimary}
-                onChange={(e) => setIsPrimary(e.target.checked)}
-                className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-blue-600 focus:ring-blue-600"
+                onCheckedChange={setIsPrimary}
+                disabled={foundPaymentMethod.is_default}
               />
-              <Label htmlFor="primary" className="cursor-pointer">
-                Set as primary payment method
-              </Label>
             </div>
           </CardContent>
-          <CardFooter>
-            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={isSaving}>
+          <CardFooter className="flex flex-col space-y-3">
+            <Button
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
               {isSaving ? (
                 <span className="flex items-center">
                   <svg
@@ -388,6 +490,77 @@ export default function EditPaymentMethodPage() {
                 </span>
               )}
             </Button>
+
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Payment Method
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="bg-zinc-900 border-zinc-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payment Method</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this payment method? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <DashboardHeader />
+    </main>
+  )
+}
+
+function PaymentMethodSkeleton() {
+  return (
+    <main className="min-h-screen bg-black pb-20">
+      <div className="container max-w-md mx-auto px-4 pt-6">
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardHeader>
+            <div className="flex items-center mb-2">
+              <Skeleton className="h-10 w-10 rounded-md mr-2" />
+              <Skeleton className="h-6 w-40" />
+            </div>
+            <Skeleton className="h-4 w-60" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            
+            <div className="space-y-3 pt-2">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+            
+            <Skeleton className="h-8 w-full mt-4" />
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-3">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
           </CardFooter>
         </Card>
       </div>
