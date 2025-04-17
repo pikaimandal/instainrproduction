@@ -80,12 +80,16 @@ export default function AuthScreen() {
       
       const userData = await verifyResponse.json()
       
-      // Handle successful authentication
-      if (isNewAccount) {
-        // For new accounts, show onboarding
+      // Store wallet address and user ID in localStorage for future use
+      localStorage.setItem('wallet_address', userData.address)
+      localStorage.setItem('user_id', userData.userId)
+      
+      // Handle user flow based on profile completion status
+      if (userData.isNewUser || !userData.isProfileComplete) {
+        // User needs to complete profile
         setShowOnboarding(true)
       } else {
-        // For existing users, redirect to home
+        // User has a complete profile, redirect to dashboard
         router.push('/dashboard')
       }
       

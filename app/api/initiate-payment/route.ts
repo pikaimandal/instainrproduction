@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { getUserByWalletAddress } from '@/lib/services/userService'
+import { createTransaction } from '@/lib/services/transactionService'
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +20,34 @@ export async function POST(request: Request) {
     // Generate unique reference ID
     const referenceId = uuidv4()
 
-    // Store payment details in a cookie
+    // Find user ID from wallet address
+    const user = await getUserByWalletAddress(wallet)
+    if (!user) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'User not found' 
+      }, { status: 404 })
+    }
+
+    // Create a transaction record in pending state
+    const transaction = await createTransaction({
+      user_id: user.id,
+      reference_id: referenceId,
+      sender_wallet_address: wallet,
+      recipient_address: process.env.NEXT_PUBLIC_RECIPIENT_ADDRESS || '',
+      token_symbol: token,
+      token_amount: amount,
+      status: 'pending'
+    })
+
+    if (!transaction) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Failed to create transaction record' 
+      }, { status: 500 })
+    }
+
+    // Store payment details in a cookie for verification
     const paymentDetails = {
       referenceId,
       amount,
