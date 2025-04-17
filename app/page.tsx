@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import SplashScreen from "@/components/splash-screen"
 import AuthScreen from "@/components/auth-screen"
 import { isSupabaseInitialized } from "@/lib/supabase"
+import { checkRequiredConfig } from "@/lib/config"
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true)
@@ -12,29 +13,13 @@ export default function Home() {
   const [errorDetails, setErrorDetails] = useState<string[]>([])
   const router = useRouter()
 
-  // Function to check environment variables
-  const checkEnvironment = () => {
-    const missingVars = [];
-    
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) 
-      missingVars.push("NEXT_PUBLIC_SUPABASE_URL");
-    
-    if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) 
-      missingVars.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-    
-    if (!process.env.NEXT_PUBLIC_WORLD_APP_ID) 
-      missingVars.push("NEXT_PUBLIC_WORLD_APP_ID");
-    
-    return missingVars;
-  }
-
   useEffect(() => {
-    // Check if critical dependencies are available
-    const missingVars = checkEnvironment();
+    // Check for missing required configuration
+    const { valid, missing } = checkRequiredConfig();
     
-    if (missingVars.length > 0) {
-      console.error("Missing environment variables:", missingVars);
-      setErrorDetails(missingVars);
+    if (!valid) {
+      console.error("Missing environment variables:", missing);
+      setErrorDetails(missing);
       setHasError(true);
     } else if (!isSupabaseInitialized()) {
       console.error("Supabase is not initialized properly");

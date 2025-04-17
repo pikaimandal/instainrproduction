@@ -2,16 +2,16 @@
 
 import { ReactNode, useEffect, useState } from 'react'
 import { MiniKit } from '@worldcoin/minikit-js'
+import { worldAppConfig } from '@/lib/config'
 
 export default function MiniKitProvider({ children }: { children: ReactNode }) {
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     try {
-      // Initialize MiniKit with the app ID from environment variables
-      const appId = process.env.NEXT_PUBLIC_WORLD_APP_ID
-      if (appId) {
-        MiniKit.install(appId)
+      // Initialize MiniKit with the app ID from centralized config
+      if (worldAppConfig.isInitialized()) {
+        MiniKit.install(worldAppConfig.appId)
         console.log('MiniKit initialized with app ID')
       } else {
         console.warn('World App ID not found in environment variables')

@@ -1,5 +1,6 @@
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { NewUser, User } from '@/types/database';
+import { supabaseConfig } from '@/lib/config';
 
 /**
  * Find a user by wallet address
@@ -78,8 +79,8 @@ export async function updateUser(userId: string, userData: Partial<NewUser>): Pr
 export async function findOrCreateUserByWalletAddress(walletAddress: string): Promise<User | null> {
   try {
     // Check if supabaseAdmin is initialized
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('SUPABASE_SERVICE_ROLE_KEY is missing - trying to use regular client');
+    if (!supabaseConfig.isAdminInitialized()) {
+      console.error('Admin service role key is missing - trying to use regular client');
       // Fallback to regular client if admin key is missing
       return await getUserByWalletAddress(walletAddress);
     }

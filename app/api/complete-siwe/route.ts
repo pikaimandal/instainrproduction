@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { MiniAppWalletAuthSuccessPayload, verifySiweMessage } from '@worldcoin/minikit-js';
 import { findOrCreateUserByWalletAddress } from '@/lib/services/userService';
 import { isUserProfileComplete } from '@/lib/services/userService';
-import { isSupabaseInitialized } from '@/lib/supabase';
+import { supabaseConfig } from '@/lib/config';
 
 interface IRequestPayload {
   payload: MiniAppWalletAuthSuccessPayload;
@@ -12,7 +12,7 @@ interface IRequestPayload {
 export async function POST(request: NextRequest) {
   try {
     // Check if database is available
-    if (!isSupabaseInitialized()) {
+    if (!supabaseConfig.isInitialized()) {
       console.error('Supabase is not initialized - cannot complete authentication');
       return NextResponse.json(
         { error: 'Database service unavailable. Please try again later.' },

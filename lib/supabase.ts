@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { supabaseConfig } from './config';
 
 // Create a variable to hold the Supabase client but don't initialize it yet
 let supabaseInstance: SupabaseClient | null = null;
@@ -6,7 +7,7 @@ let supabaseAdminInstance: SupabaseClient | null = null;
 
 // Helper function to check if Supabase environment variables are present
 export const isSupabaseInitialized = (): boolean => {
-  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  return supabaseConfig.isInitialized();
 };
 
 // Function to initialize Supabase only when needed
@@ -16,22 +17,16 @@ const initSupabase = (): SupabaseClient | null => {
     return supabaseInstance;
   }
 
-  // Check for required environment variables
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  // If either is missing, log a warning and return null
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Missing Supabase environment variables:',
-      !supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL' : '',
-      !supabaseAnonKey ? 'NEXT_PUBLIC_SUPABASE_ANON_KEY' : ''
-    );
+  // Check if Supabase can be initialized
+  if (!supabaseConfig.isInitialized()) {
+    console.warn('Supabase cannot be initialized: missing configuration');
     return null;
   }
 
   // Only create the client if both URL and key are available
   try {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+    const { url, anonKey } = supabaseConfig.getRequiredConfig();
+    supabaseInstance = createClient(url, anonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -52,22 +47,16 @@ const initSupabaseAdmin = (): SupabaseClient | null => {
     return supabaseAdminInstance;
   }
 
-  // Check for required environment variables
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  // If either is missing, log a warning and return null
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.warn('Missing Supabase admin environment variables:',
-      !supabaseUrl ? 'NEXT_PUBLIC_SUPABASE_URL' : '',
-      !supabaseServiceKey ? 'SUPABASE_SERVICE_ROLE_KEY' : ''
-    );
+  // Check if Supabase Admin can be initialized
+  if (!supabaseConfig.isAdminInitialized()) {
+    console.warn('Supabase Admin cannot be initialized: missing configuration');
     return null;
   }
 
   // Only create the admin client if both URL and service key are available
   try {
-    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey, {
+    const { url, serviceRoleKey } = supabaseConfig.getRequiredAdminConfig();
+    supabaseAdminInstance = createClient(url, serviceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false
