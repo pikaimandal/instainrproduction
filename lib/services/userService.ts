@@ -77,12 +77,25 @@ export async function updateUser(userId: string, userData: Partial<NewUser>): Pr
  */
 export async function findOrCreateUserByWalletAddress(walletAddress: string): Promise<User | null> {
   try {
+    // Check if supabaseAdmin is initialized
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY is missing - trying to use regular client');
+      // Fallback to regular client if admin key is missing
+      return await getUserByWalletAddress(walletAddress);
+    }
+
     // First try to get the user
     const { data: existingUser, error: fetchError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('wallet_address', walletAddress)
       .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching user with admin client:', fetchError);
+      // Try with regular client as fallback
+      return await getUserByWalletAddress(walletAddress);
+    }
 
     if (existingUser) {
       return existingUser as User;

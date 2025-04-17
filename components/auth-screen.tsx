@@ -73,35 +73,40 @@ export default function AuthScreen() {
       }
       
       // Verify authentication on the server
-      const verifyResponse = await fetch('/api/complete-siwe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          payload: finalPayload,
-          nonce: nonce,
-        }),
-      })
-      
-      if (!verifyResponse.ok) {
-        const errorData = await verifyResponse.json()
-        throw new Error(errorData.message || 'Authentication verification failed')
-      }
-      
-      const userData = await verifyResponse.json()
-      
-      // Store wallet address and user ID in localStorage for future use
-      localStorage.setItem('wallet_address', userData.address)
-      localStorage.setItem('user_id', userData.userId)
-      
-      // Handle user flow based on profile completion status
-      if (userData.isNewUser || !userData.isProfileComplete) {
-        // User needs to complete profile
-        setShowOnboarding(true)
-      } else {
-        // User has a complete profile, redirect to dashboard
-        router.push('/dashboard')
+      try {
+        const verifyResponse = await fetch('/api/complete-siwe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            payload: finalPayload,
+            nonce: nonce,
+          }),
+        })
+        
+        if (!verifyResponse.ok) {
+          const errorData = await verifyResponse.json()
+          throw new Error(errorData.error || 'Authentication verification failed')
+        }
+        
+        const userData = await verifyResponse.json()
+        
+        // Store wallet address and user ID in localStorage for future use
+        localStorage.setItem('wallet_address', userData.address)
+        localStorage.setItem('user_id', userData.userId)
+        
+        // Handle user flow based on profile completion status
+        if (userData.isNewUser || !userData.isProfileComplete) {
+          // User needs to complete profile
+          setShowOnboarding(true)
+        } else {
+          // User has a complete profile, redirect to dashboard
+          router.push('/dashboard')
+        }
+      } catch (serverError) {
+        console.error('Server verification error:', serverError)
+        toast.error("Server error during verification. Please try again later.")
       }
       
     } catch (error) {

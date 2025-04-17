@@ -9,13 +9,37 @@ import { isSupabaseInitialized } from "@/lib/supabase"
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true)
   const [hasError, setHasError] = useState(false)
+  const [errorDetails, setErrorDetails] = useState<string[]>([])
   const router = useRouter()
+
+  // Function to check environment variables
+  const checkEnvironment = () => {
+    const missingVars = [];
+    
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) 
+      missingVars.push("NEXT_PUBLIC_SUPABASE_URL");
+    
+    if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) 
+      missingVars.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    
+    if (!process.env.NEXT_PUBLIC_WORLD_APP_ID) 
+      missingVars.push("NEXT_PUBLIC_WORLD_APP_ID");
+    
+    return missingVars;
+  }
 
   useEffect(() => {
     // Check if critical dependencies are available
-    if (!isSupabaseInitialized()) {
-      console.error("Supabase is not initialized properly - missing environment variables")
-      setHasError(true)
+    const missingVars = checkEnvironment();
+    
+    if (missingVars.length > 0) {
+      console.error("Missing environment variables:", missingVars);
+      setErrorDetails(missingVars);
+      setHasError(true);
+    } else if (!isSupabaseInitialized()) {
+      console.error("Supabase is not initialized properly");
+      setErrorDetails(["Supabase could not be initialized"]);
+      setHasError(true);
     }
 
     // Show splash screen for 2.5 seconds
@@ -26,17 +50,39 @@ export default function Home() {
     return () => clearTimeout(timer)
   }, [])
 
+  // Function to force reload the page
+  const handleRetry = () => {
+    window.location.reload();
+  }
+
   if (hasError) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
-          <p className="mb-4">We couldn't connect to our services. Please try again later.</p>
+        <div className="text-center w-full max-w-md">
+          <div className="mb-8 flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-red-600 text-white">
+            <span className="text-2xl">!</span>
+          </div>
+          
+          <h1 className="text-2xl font-bold mb-4">Application Error</h1>
+          <p className="mb-6">We couldn't initialize the application properly. Please try again later.</p>
+          
+          {errorDetails.length > 0 && (
+            <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-md text-left">
+              <p className="font-semibold mb-2">Missing environment variables:</p>
+              <ul className="list-disc list-inside">
+                {errorDetails.map((detail, index) => (
+                  <li key={index} className="text-sm text-red-600 dark:text-red-400">{detail}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-sm">Please check your server configuration.</p>
+            </div>
+          )}
+          
           <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md"
+            onClick={handleRetry}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            Refresh
+            Try Again
           </button>
         </div>
       </main>
